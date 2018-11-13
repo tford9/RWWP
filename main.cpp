@@ -94,6 +94,14 @@ struct VertexProperties
 		move(v);
 
 	}
+	void set_current_values(int pop , int ipop , int spop)
+	{
+		current_step.population = pop;
+		current_step.infective_population = ipop;
+		current_step.suceptible_population = spop;
+
+	}
+
 	friend std::ostream& operator<<(std::ostream& os, VertexProperties& vp) {
         return os << "{" << vp.current_step.population << "," << vp.current_step.infective_population << "," << vp.current_step.suceptible_population << "}";
     }
@@ -126,17 +134,24 @@ int main(int argc, char* argv[]) {
 	// Create a float for every node in the graph
 	boost::vector_property_map<VertexProperties , indexMapType> dataMap(num_vertices(graph), indexMap);
 
-	// Vertex v = random_vertex(graph, rng);
 
 	// Associate the value 2.0 with the node at position (0,0) in the grid
 	// Vertex v = { { 0, 0 } };
 	// VertexProperties vert;
 	// put(dataMap, v, vert);
 
+	// INIT VERTEXPROPERTIES
     for (uint i = 0; i < 2; ++i)
     	for (uint j = 0; j < 2; ++j)
         	put(dataMap, Traits::vertex_descriptor {{i, j}}, VertexProperties{i,j,1});
 
+    // SELECT INFECTED
+    Vertex init_infected = random_vertex(graph, rng);
+    auto init_infected_vp = get(dataMap, init_infected);
+    init_infected_vp.set_current_values(1,1,0);
+    put(dataMap, init_infected, init_infected_vp );
+
+    
 	// // // Get the data at the node at position (0,1) in the grid
 	// // std::pair<float,float> retrieved = get(dataMap, v);
 	// // std::cout << "Retrieved values: (" << retrieved.first <<
