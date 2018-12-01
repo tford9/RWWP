@@ -32,6 +32,9 @@ struct VertexProperties
 	step_data current_step;
 	step_data future_step;
 
+	int ID;
+	std::string name;
+
 	uint row = 0;
 	uint col = 0;
 
@@ -124,65 +127,149 @@ struct EdgeProperties
 	uint weight = 1;
 };
 
+typedef std::vector<std::vector<std::string>> edgeMatrix;
 typedef Graph<VertexProperties, EdgeProperties> GraphType;
 typedef GraphType::Vertex VertexID;
 
 typedef typename graph_traits<GraphType::GraphContainer>::edge_descriptor Edge;
 typedef typename graph_traits<GraphType::GraphContainer>::vertex_descriptor Vertex;
 
-
+std::map<std::string, VertexID> name_to_Vertex_map;
 class MyVisitor : public boost::default_dfs_visitor
 {
 
 public:
 	void discover_vertex(Vertex v, const GraphType::GraphContainer& g) const
 	{
-		// auto vp = get(dataMap, v);
-		std::cout << "I see dead people!" << std::endl;
-		// std::cerr << v << std::endl;
+		typename property_map<GraphType::GraphContainer, vertex_properties_t>::const_type param = get(vertex_properties, g);
+		auto vp = param[v];
+		// std::cout << "I see dead people!" << std::endl;
+		std::cerr << vp << vp.ID << std::endl;
 		// return;
 	}
 };
 
-void loadGraphML(std::string filename, GraphType::GraphContainer g){
+// void loadGraphML(std::string filename, GraphType::GraphContainer g){
 
-    std::ifstream inFile;
-    inFile.open(filename, std::ifstream::in);
+//     std::ifstream inFile;
+//     inFile.open(filename, std::ifstream::in);
 
-    boost::dynamic_properties dp;
-	boost::read_graphml(inFile, g);
-}
+//     boost::dynamic_properties dp;
+// 	boost::read_graphml(inFile, g);
+// }
 
-int main(int argc, char* argv[]) {
+edgeMatrix readEdgeList(std::string fileName);
 
-	static boost::random::mt19937 rng;           
+// Global graph object
+GraphType g;
+GraphType::GraphContainer G;
 
-	GraphType g;
+int main() {
+	std::cout << "Using Boost "     
+          << BOOST_VERSION / 100000     << "."  // major version
+          << BOOST_VERSION / 100 % 1000 << "."  // minor version
+          << BOOST_VERSION % 100                // patch level
+          << std::endl;
 
-	std::string filename = "../graph_data/processed/web-NotreDame.graphml";
+	std::string filename = "../graph_data/raw/g1.txt";
 
-	loadGraphML(filename, g.graph);
-	
-	typedef boost::property_map<GraphType, boost::vertex_index_t>::const_type indexMapType;
-	indexMapType indexMap(get(boost::vertex_index, graph));
+	edgeMatrix edgemat;
+	try{
+		edgemat = readEdgeList(filename);	
+	}catch(...) {
+		std::cerr << "File Read Failed" << std::endl;
+	}
 
-	// Create a float for every node in the graph
-	boost::vector_property_map<VertexProperties , indexMapType> dataMap(num_vertices(graph), indexMap);
+	for (auto row = edgemat.begin(); row != edgemat.end(); ++row ) {
 
+		VertexProperties vp01, vp02;
+		EdgeProperties ep01, ep02;
+		GraphType::Vertex v01, v02;
 
-	// Associate the value 2.0 with the node at position (0,0) in the grid
-	// Vertex v = { { 0, 0 } };
-	// VertexProperties vert;
-	// put(dataMap, v, vert);
+		vp01.ID = std::stoi((*row)[0]);
+		vp02.ID = std::stoi((*row)[1]);
 
-	// INIT VERTEXPROPERTIES
-    for (uint i = 0; i < 2; ++i)
-    	for (uint j = 0; j < 2; ++j)
-put(dataMap, Traits::vertex_descriptor {{i, j}}, VertexProperties{i,j,1});
+		vp01.name = (*row)[0];
+		vp02.name = (*row)[1];
 
+		// Check if source vertex is already in the graph
+		{
+			if (name_to_Vertex_map.find(vp01.name) == name_to_Vertex_map.end())
+			{
+				v01 = g.AddVertex(vp01);
+				name_to_Vertex_map.insert(std::pair<std::string, VertexID>(vp01.name, v01));
+			}
+			else
+			{
+				v01 = (name_to_Vertex_map.find(vp01.name))->second;
+			}
 
-    MyVisitor vis;
+			// Check if target vertex is already in the graph
+			if (name_to_Vertex_map.find(vp02.name) == name_to_Vertex_map.end())
+			{
+				v02 = g.AddVertex(vp02);
+				name_to_Vertex_map.insert(std::pair<std::string, VertexID>(vp02.name, v02));
+			}
+			else
+			{
+				v02 = (name_to_Vertex_map.find(vp02.name))->second;
+			}
+
+			g.AddDirectedEdge(v01, v02, ep01);
+		}
+	}
+
+	MyVisitor vis;
 	boost::depth_first_search(g.graph, boost::visitor(vis));
 
+	// std::cout << *(boost::vertices(G).first) << *(boost::vertices(G).second);
+
 	return 0;
+
+// 		boost::write_graphml(outGraphFile2, G, dp, true);
+// 	}
+}
+
+edgeMatrix readEdgeList(std::string fileName) {
+
+	edgeMatrix edgemat;
+
+	std::string line;
+	int skippedLines = 0;
+	int idx = 0;
+
+	// this assumes a standard edgelist format
+	// and ignores commented lines
+	std::ifstream inFile(fileName);
+	while (std::getline(inFile, line))
+	{
+		if (idx == 0) {
+			std::cout << "Edgelist file opened.." << std::endl;
+		}
+		idx++;
+		//std::cout << line.length() << std::endl;
+		// skip commented or empty lines
+		if (line.length() == 0 || line[0] == ('#')) {
+			skippedLines += 1;
+			continue;
+		} else {
+			std::vector<std::string> row;
+
+			char *cstr = new char[line.length() + 1];
+			std::strcpy(cstr, line.c_str());
+			auto pch = std::strtok(cstr, "\t");
+			while (pch != NULL) {
+				row.push_back(pch);
+				pch = std::strtok(NULL, "\t");
+			}
+			
+		    edgemat.push_back(row);
+		}
+	}
+	inFile.close();
+
+	std::cout << "File read complete\n Lines skipped: " << skippedLines << std::endl;
+	std::cout << "The number of edges read: " << edgemat.size() << std::endl;
+
+	return edgemat;
 }
