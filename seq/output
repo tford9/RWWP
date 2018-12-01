@@ -1,0 +1,1 @@
+mpic++ -std=c++11 -Wall -g -L/Users/trentonford/Desktop/KERNAL_PROJECT_SPACE/usr/lib -lboost_graph_parallel -lboost_mpi -lboost_system -lboost_serialization -lboost_thread -o main main.cpp utilities.o
