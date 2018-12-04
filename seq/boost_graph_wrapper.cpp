@@ -146,6 +146,10 @@ public:
     {
         return adjacent_vertices(v, graph);
     }
+    out_edge_range_t getOutVertices(const Vertex& v) const
+    {
+        return out_edges(v, graph);
+    }
 
     int getVertexCount() const
     {
