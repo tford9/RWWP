@@ -18,34 +18,18 @@ namespace boost {
     BOOST_INSTALL_PROPERTY(edge, properties);
 }
 
-// VertexProperties is the property container that will be passed into the 
-// templated graph object - should work for serial and parallel versions
-struct VertexProperties 
-{
-    uint ID;
-    std::string name;
-};
-// EdgeProperties is the property container that will be passed into the 
-// templated graph object - should work for serial and parallel versions
-struct EdgeProperties
-{
-    double p = 1.0;
-    uint times_traversed = 0;    
-};
-
 /* the graph base class template */
 template < typename VERTEXPROPERTIES, typename EDGEPROPERTIES >
 class Graph
 {
 public:
     /* an adjacency_list like we need it */
-    typedef adjacency_list<
-        vecS, // disallow parallel edges
-        vecS, // vertex container
-        bidirectionalS, // directed graph
-        property<vertex_properties_t, VERTEXPROPERTIES>,
-        property<edge_properties_t, EDGEPROPERTIES>
-    > GraphContainer;
+    typedef boost::adjacency_list<boost::vecS, 
+            boost::distributedS<boost::graph::distributed::mpi_process_group, 
+            boost::vecS>, 
+            boost::bidirectionalS, 
+            VERTEXPROPERTIES, 
+            EDGEPROPERTIES> GraphContainer;
 
     /* a bunch of graph-specific typedefs */
     typedef typename graph_traits<GraphContainer>::vertex_descriptor Vertex;
@@ -85,7 +69,7 @@ public:
 
     EdgePair AddEdge(const Vertex& v1, const Vertex& v2, const EDGEPROPERTIES& prop_12, const EDGEPROPERTIES& prop_21);
 
-    Edge AddDirectedEdge(const Vertex& v1, const Vertex& v2, const EDGEPROPERTIES& prop);
+    void AddDirectedEdge(const Vertex& v1, const Vertex& v2, const EDGEPROPERTIES& prop);
 
     /* property access */
     VERTEXPROPERTIES& properties();
@@ -114,6 +98,5 @@ public:
     /* operators */
     Graph& operator=(const Graph &rhs);
 
-protected:
     GraphContainer graph;
 };

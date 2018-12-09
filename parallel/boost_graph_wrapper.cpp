@@ -1,7 +1,10 @@
 #include <boost/config.hpp>
 #include <boost/version.hpp>
+#include <boost/mpi.hpp>
+#include <boost/graph/use_mpi.hpp>
+#include <boost/graph/distributed/mpi_process_group.hpp>
+#include <boost/graph/distributed/adjacency_list.hpp>
 #include <boost/graph/graph_utility.hpp>
-#include <boost/graph/adjacency_list.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/static_assert.hpp>
 
@@ -18,21 +21,20 @@ namespace boost {
 }
 
 
-
-/* Same as above but doesn't require any copying. */
+/* the graph base class template */
 template < typename VERTEXPROPERTIES, typename EDGEPROPERTIES >
-class GraphView
+class Graph
 {
 public:
 
     /* an adjacency_list like we need it */
-    typedef adjacency_list<
-        vecS, // disallow parallel edges
-        vecS, // vertex container
-        bidirectionalS, // directed graph
-        property<vertex_properties_t, VERTEXPROPERTIES>,
-        property<edge_properties_t, EDGEPROPERTIES>
-    > GraphContainer;
+    typedef boost::adjacency_list<boost::vecS, 
+            boost::distributedS<boost::graph::distributed::mpi_process_group, 
+            boost::vecS>, 
+            boost::bidirectionalS, 
+            boost::property<vertex_properties_t, VERTEXPROPERTIES>
+            // ,boost::property<edge_properties_t, EDGEPROPERTIES>
+            > GraphContainer;
 
 
     /* a bunch of graph-specific typedefs */
@@ -54,60 +56,121 @@ public:
 
 
     /* constructors etc. */
-    GraphView()
+    Graph()
     {}
 
-    GraphView(const GraphContainer * const g) :
-        graph_ptr(g)
+    Graph(const Graph& g) :
+        graph(g.graph)
     {}
 
-    virtual ~GraphView()
+    virtual ~Graph()
     {}
+
+
+    /* structure modification methods */
+    void Clear()
+    {
+        graph.clear();
+    }
+
+    Vertex AddVertex(const VERTEXPROPERTIES& prop)
+    {
+        Vertex v = add_vertex(graph);
+        properties(v) = prop;
+        return v;
+    }
+
+    void RemoveVertex(const Vertex& v)
+    {
+        clear_vertex(v, graph);
+        remove_vertex(v, graph);
+    }
+
+    EdgePair AddEdge(const Vertex& v1, const Vertex& v2, const EDGEPROPERTIES& prop_12, const EDGEPROPERTIES& prop_21)
+    {
+        /* TODO: maybe one wants to check if this edge could be inserted */
+        Edge addedEdge1 = add_edge(v1, v2, graph).first;
+        Edge addedEdge2 = add_edge(v2, v1, graph).first;
+
+        properties(addedEdge1) = prop_12;
+        properties(addedEdge2) = prop_21;
+
+        return EdgePair(addedEdge1, addedEdge2);
+    }
+
+    void AddDirectedEdge(const Vertex& v1, const Vertex& v2, const EDGEPROPERTIES& prop)
+    {
+        add_edge(v1, v2, prop, graph);
+    }
 
     /* property access */
+    VERTEXPROPERTIES& properties()
+    {
+        typename property_map<GraphContainer, vertex_properties_t>::type param = get(vertex_properties, graph);
+        return param;
+    }
+    VERTEXPROPERTIES& properties(const Vertex& v)
+    {
+        typename property_map<GraphContainer, vertex_properties_t>::type param = get(vertex_properties, graph);
+        return param[v];
+    }
+
     const VERTEXPROPERTIES& properties(const Vertex& v) const
     {
-        typename property_map<GraphContainer, vertex_properties_t>::const_type param = get(vertex_properties, *graph_ptr);
+        typename property_map<GraphContainer, vertex_properties_t>::const_type param = get(vertex_properties, graph);
+        return get(param, v);
+    }
+
+    EDGEPROPERTIES& properties(const Edge& v)
+    {
+        typename property_map<GraphContainer, edge_properties_t>::type param = get(edge_properties, graph);
         return param[v];
     }
 
     const EDGEPROPERTIES& properties(const Edge& v) const
     {
-        typename property_map<GraphContainer, edge_properties_t>::const_type param = get(edge_properties, *graph_ptr);
+        typename property_map<GraphContainer, edge_properties_t>::const_type param = get(edge_properties, graph);
         return param[v];
     }
 
+
     /* selectors and properties */
-    const GraphContainer * const getGraphPtr() const
+    const GraphContainer& getGraph() const
     {
-        return graph_ptr;
+        return graph;
     }
 
     vertex_range_t getVertices() const
     {
-        return vertices(*graph_ptr);
+        return vertices(graph);
     }
 
     adjacency_vertex_range_t getAdjacentVertices(const Vertex& v) const
     {
-        return adjacent_vertices(v, *graph_ptr);
+        return adjacent_vertices(v, graph);
     }
-
-    out_edge_range_t getAdjacentVertices(const Vertex& v) const
+    out_edge_range_t getOutVertices(const Vertex& v) const
     {
-        return adjacent_vertices(v, *graph_ptr);
+        return out_edges(v, graph);
     }
 
     int getVertexCount() const
     {
-        return num_vertices(*graph_ptr);
+        return num_vertices(graph);
     }
 
     int getVertexDegree(const Vertex& v) const
     {
-        return out_degree(v, *graph_ptr);
+        return out_degree(v, graph);
     }
 
-protected:
-    const GraphContainer * const graph_ptr;  // Constant pointer to a constant graph.
+
+    /* operators */
+    Graph& operator=(const Graph &rhs)
+    {
+        graph = rhs.graph;
+        return *this;
+    }
+
+    GraphContainer graph;
 };
