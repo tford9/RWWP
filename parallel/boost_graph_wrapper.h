@@ -29,7 +29,7 @@ public:
             boost::vecS>, 
             boost::undirectedS, 
             boost::property<vertex_properties_t, VERTEXPROPERTIES>
-            ,boost::property<edge_properties_t, EDGEPROPERTIES>
+            ,boost::property<vertex_color_t, default_color_type>
             > GraphContainer;
 
     /* a bunch of graph-specific typedefs */

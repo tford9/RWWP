@@ -187,12 +187,12 @@ public:
         // auto vp  = get(param, v);
 
 		// auto vp = G.properties(v);
-		auto pg = g.process_group();
-		std::cerr << process_id(pg) << std::endl;
+		// auto pg = g.process_group();
+		// std::cerr << process_id(pg) << std::endl;
 		// std::cerr << "Vertex Population:" << vp.current_step.population << std::endl;
 		// std::cerr << "Vertex Infective Population:" << vp.current_step.infective_population << std::endl;
 		// std::cerr << "Vertex Susceptible Population:" << vp.current_step.suceptible_population << std::endl;
-		std::cerr << std::endl;
+		// std::cerr << std::endl;
 	}
 };
 
@@ -255,13 +255,27 @@ int main(int argc, char * argv[])
 
 	std::vector<Vertex> parent(num_vertices(g));
 	std::vector<Vertex> explore(num_vertices(g));
+    
+    Vertex init_infected = random_vertex(g, rng);
+
+	boost::graph::tsin_depth_first_visit
+		(g,
+		 vertex(0, g),
+		 Visit_No_Work(),
+		 get(vertex_color, g),
+		 make_iterator_property_map(parent.begin(), get(vertex_index, g)),
+		 make_iterator_property_map(explore.begin(), get(vertex_index, g)),
+		 get(vertex_index, g));
 
 	for (std::size_t i = 0; i < N; ++i) {
 		Vertex v = vertex(i, g);
 		if (owner(v) == process_id(g.process_group())) {
-			std::cout  << "parent(" << g.distribution().global(owner(v), local(v)) << ") = "
-				<< g.distribution().global(owner(parent[v.local]), local(parent[v.local])) << std::endl;
-
+			auto vp = get(param,v);
+			vp.id_ = g.distribution().global(owner(v), local(v));
+			printf("Vertex ID: %d \n", vp.id_);
+			put(param, v, vp);
+			// std::cout  << "parent(" << g.distribution().global(owner(v), local(v)) << ") = "
+			// 	<< g.distribution().global(owner(parent[v.local]), local(parent[v.local])) << std::endl;
 		}
 	}
 	// BGL_FORALL_VERTICES(v, g, GraphType::GraphContainer)
@@ -269,7 +283,6 @@ int main(int argc, char * argv[])
 	// 	std::cout << "V @ " << comm.rank() << " ";// << g[v] << std::endl;
 	// } 
 
- //    Vertex init_infected = random_vertex(g, rng);
 	// Visit_No_Work vis;
 	// depth_first_search(g, boost::visitor(vis));
 
