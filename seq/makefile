@@ -1,7 +1,7 @@
 CFLAGS=-std=c++11 -Wall -g
 # CFLAGS=-D_GLIBCXX_USE_CXX11_ABI=0 -std=c++11 -Wall -g
 
-CC=mpic++
+CC=g++
 LDFLAGS= -I/Users/trentonford/Desktop/KERNAL_PROJECT_SPACE/usr/include
 
 LIBS= -L/Users/trentonford/Desktop/KERNAL_PROJECT_SPACE/usr/lib

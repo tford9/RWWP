@@ -27,9 +27,10 @@ public:
     typedef boost::adjacency_list<boost::vecS, 
             boost::distributedS<boost::graph::distributed::mpi_process_group, 
             boost::vecS>, 
-            boost::bidirectionalS, 
-            VERTEXPROPERTIES, 
-            EDGEPROPERTIES> GraphContainer;
+            boost::undirectedS, 
+            boost::property<vertex_properties_t, VERTEXPROPERTIES>
+            ,boost::property<edge_properties_t, EDGEPROPERTIES>
+            > GraphContainer;
 
     /* a bunch of graph-specific typedefs */
     typedef typename graph_traits<GraphContainer>::vertex_descriptor Vertex;

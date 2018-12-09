@@ -31,9 +31,9 @@ public:
     typedef boost::adjacency_list<boost::vecS, 
             boost::distributedS<boost::graph::distributed::mpi_process_group, 
             boost::vecS>, 
-            boost::bidirectionalS, 
+            boost::undirectedS, 
             boost::property<vertex_properties_t, VERTEXPROPERTIES>
-            // ,boost::property<edge_properties_t, EDGEPROPERTIES>
+            ,boost::property<edge_properties_t, EDGEPROPERTIES>
             > GraphContainer;
 
 

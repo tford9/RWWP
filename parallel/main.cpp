@@ -171,7 +171,7 @@ std::uniform_real_distribution<double> ud(0.0,1.0);
 
 std::map<std::string, VertexID> name_to_Vertex_map;
 
-edgeMatrix readEdgeList(std::string fileName);
+edgeMatrix readEdgeList(std::string fileName, int&);
 
 
 // GraphType G;
@@ -187,7 +187,8 @@ public:
         // auto vp  = get(param, v);
 
 		// auto vp = G.properties(v);
-		std::cerr << "VERTEX #: " << std::endl;
+		auto pg = g.process_group();
+		std::cerr << process_id(pg) << std::endl;
 		// std::cerr << "Vertex Population:" << vp.current_step.population << std::endl;
 		// std::cerr << "Vertex Infective Population:" << vp.current_step.infective_population << std::endl;
 		// std::cerr << "Vertex Susceptible Population:" << vp.current_step.suceptible_population << std::endl;
@@ -216,70 +217,69 @@ using boost::graph::distributed::mpi_process_group;
 
 int main(int argc, char * argv[])
 {
+	std::cout << "Using Boost "     
+      << BOOST_VERSION / 100000     << "."  // major version
+      << BOOST_VERSION / 100 % 1000 << "."  // minor version
+      << BOOST_VERSION % 100                // patch level
+      << std::endl;
+
+	static boost::random::mt19937 rng;
 
     boost::mpi::environment env{argc, argv};
     boost::mpi::communicator comm;
 
-    std::cout << comm.rank() << std::endl; 
-
 	// GraphType::GraphContainer g(edgemat.begin(), edgemat.end(), 64);
 	// mpi_process_group pg = g.process_group();
-
-	std::vector<Vertex> descs; 
 
 	std::string filename ="current_g";
 	std::string filepath = "../graph_data/processed/" + filename;
 
 	edgeMatrix edgemat;
+	int N = -1;
 
 	try{
-		edgemat = readEdgeList(filepath);	
+		edgemat = readEdgeList(filepath, N);
+		// printf("%d", N);
 	}catch(...) {
 		std::cerr << "File Read Failed" << std::endl;
 	}
 
-	GraphType::GraphContainer g(edgemat.begin(), edgemat.end(), 64);
+
+	GraphType::GraphContainer g(edgemat.begin(), edgemat.end(), N);
 	
-	if (comm.rank() == 0) {
-		std::cout << "Using Boost "     
-          << BOOST_VERSION / 100000     << "."  // major version
-          << BOOST_VERSION / 100 % 1000 << "."  // minor version
-          << BOOST_VERSION % 100                // patch level
-          << std::endl;
+	property_map<GraphType::GraphContainer, vertex_properties_t>::type param = get(vertex_properties, g);
 
-	// 	for (auto row = edgemat.begin(); row != edgemat.end(); ++row ) {
-
-	// // 		// VertexProperties vp1 = VertexProperties( std::stoi((*row)[0]) );
-	// // 		// VertexProperties vp2 = VertexProperties( std::stoi((*row)[1]) );
-
-	// // 		// Vertex v1 = add_vertex(vertex(std::stoi((*row)[0]), g), vertex(target, g), G.graph);
-	// // 		// Vertex v2 = add_vertex(vp2, G.graph);
-
-	// // 		// EdgeProperties ep;
-	// 		// std::cout << "( " << std::stoi((*row)[0]) << "," <<
-	// 		// 	std::stoi((*row)[1])  << ")" << std::endl;
-	// 		add_edge(vertex(std::stoi((*row)[0]), g), vertex(std::stoi((*row)[1]), g), g);
-	// 	}
-
-		std::cout << "ALIVE" << std::endl;
+	BGL_FORALL_VERTICES(v, g, GraphType::GraphContainer) {
+		put(param, v, VertexProperties(1,0,1));
 	}
-	synchronize(g.process_group());
 
-	BGL_FORALL_VERTICES(v, g, GraphType::GraphContainer)
-     {
-         std::cout << "V @ " << comm.rank() << " ";// << g[v] << std::endl;
-     } 
-	// g.redistribute()
+	std::vector<Vertex> parent(num_vertices(g));
+	std::vector<Vertex> explore(num_vertices(g));
 
+	for (std::size_t i = 0; i < N; ++i) {
+		Vertex v = vertex(i, g);
+		if (owner(v) == process_id(g.process_group())) {
+			std::cout  << "parent(" << g.distribution().global(owner(v), local(v)) << ") = "
+				<< g.distribution().global(owner(parent[v.local]), local(parent[v.local])) << std::endl;
+
+		}
+	}
+	// BGL_FORALL_VERTICES(v, g, GraphType::GraphContainer)
+	// {
+	// 	std::cout << "V @ " << comm.rank() << " ";// << g[v] << std::endl;
+	// } 
+
+ //    Vertex init_infected = random_vertex(g, rng);
 	// Visit_No_Work vis;
 	// depth_first_search(g, boost::visitor(vis));
 
     return 0;
 }
 
-edgeMatrix readEdgeList(std::string fileName) {
+edgeMatrix readEdgeList(std::string fileName, int& N) {
 
 	edgeMatrix edgemat;
+	set <int, greater <int> > dict;
 
 	std::string line;
 	int skippedLines = 0;
@@ -314,6 +314,8 @@ edgeMatrix readEdgeList(std::string fileName) {
 			}
 			
 			if(!is_null) {
+				dict.insert(line_data[0]);
+				dict.insert(line_data[1]);
 				row = make_pair(line_data[0], line_data[1]);
 		    	edgemat.push_back(row);
 		    }
@@ -323,6 +325,6 @@ edgeMatrix readEdgeList(std::string fileName) {
 
 	std::cerr << "File read complete\n Lines skipped: " << skippedLines << std::endl;
 	std::cerr << "The number of edges read: " << edgemat.size() << std::endl;
-
+	N = dict.size();
 	return edgemat;
 }
