@@ -28,12 +28,13 @@ class Graph
 public:
 
     /* an adjacency_list like we need it */
+    
     typedef boost::adjacency_list<boost::vecS, 
             boost::distributedS<boost::graph::distributed::mpi_process_group, 
             boost::vecS>, 
             boost::undirectedS, 
-            boost::property<vertex_properties_t, VERTEXPROPERTIES>
-            ,boost::property<vertex_color_t, default_color_type>
+            boost::property<vertex_properties_t, VERTEXPROPERTIES>,
+            boost::property<vertex_color_t, default_color_type>
             > GraphContainer;
 
 

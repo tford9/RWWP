@@ -25,10 +25,11 @@ class Graph
 public:
 
     /* an adjacency_list like we need it */
+    
     typedef adjacency_list<
-        vecS, // disallow parallel edges
-        vecS, // vertex container
-        bidirectionalS, // directed graph
+        vecS,
+        vecS,
+        bidirectionalS, 
         property<vertex_properties_t, VERTEXPROPERTIES>,
         property<edge_properties_t, EDGEPROPERTIES>
     > GraphContainer;
